@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Juego de Ahorcado</title>
+    <style>
+        .hidden { display: none; }
+        #word-display { font-size: 2em; letter-spacing: 0.5em; }
+        .win-message {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 1.2em;
+            text-align: center;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="set-word-view">
+        <h1>Ingresar Palabra para Ahorcado</h1>
+        <input type="text" id="word-input" placeholder="Ingrese una palabra">
+        <button id="submit-word">Enviar</button>
+        <button id="to-guess-view">Ir a Adivinar</button>
+        <div id="win-message-set" class="hidden win-message">¡Has adivinado la palabra en la vista de establecer!</div>
+    </div>
+
+    <div id="guess-word-view" class="hidden">
+        <h1>Adivinar la Palabra del Ahorcado</h1>
+        <input type="text" id="letter-input" maxlength="1" placeholder="Ingrese una letra">
+        <button id="submit-letter">Adivinar</button>
+        <button id="to-set-view">Cambiar Palabra</button>
+        <div id="word-display"></div>
+        <div id="win-message-guess" class="hidden win-message">¡Has adivinado la palabra Correctamente!</div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:3000');
+
+        const setWordView = document.getElementById('set-word-view');
+        const guessWordView = document.getElementById('guess-word-view');
+        const wordInput = document.getElementById('word-input');
+        const letterInput = document.getElementById('letter-input');
+        const wordDisplay = document.getElementById('word-display');
+        const winMessageSet = document.getElementById('win-message-set');
+        const winMessageGuess = document.getElementById('win-message-guess');
+
+        const eventSource = new EventSource('http://localhost:3000/events');
+
+        document.getElementById('submit-word').addEventListener('click', () => {
+            const word = wordInput.value;
+            ws.send(JSON.stringify({ type: 'set-word', word: word }));
+            wordInput.value = '';
+        });
+
+        document.getElementById('submit-letter').addEventListener('click', () => {
+            const letter = letterInput.value;
+            ws.send(JSON.stringify({ type: 'guess-letter', letter: letter }));
+            letterInput.value = '';
+        });
+
+        document.getElementById('to-guess-view').addEventListener('click', () => {
+            setWordView.classList.add('hidden');
+            guessWordView.classList.remove('hidden');
+            winMessageSet.classList.add('hidden');
+        });
+
+        document.getElementById('to-set-view').addEventListener('click', () => {
+            setWordView.classList.remove('hidden');
+            guessWordView.classList.add('hidden');
+            winMessageGuess.classList.add('hidden');
+        });
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'welcome') {
+                console.log(msg.message);
+            } else if (msg.type === 'update-word') {
+                wordDisplay.innerText = msg.word;
+            } else if (msg.type === 'game-won') {
+                if (setWordView.classList.contains('hidden')) {
+                    winMessageGuess.classList.remove('hidden');
+                } else {
+                    winMessageSet.classList.remove('hidden');
+                }
+            }
+        };
+
+        eventSource.addEventListener('update-word', (event) => {
+            const msg = JSON.parse(event.data);
+            wordDisplay.innerText = msg.word;
+        });
+
+        eventSource.addEventListener('game-won', (event) => {
+            const msg = JSON.parse(event.data);
+            if (setWordView.classList.contains('hidden')) {
+                winMessageGuess.classList.remove('hidden');
+            } else {
+                winMessageSet.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
